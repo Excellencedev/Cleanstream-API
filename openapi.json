@@ -1,0 +1,413 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "CleanStream API",
+        "description": "Data Ingestion & Normalization API - Transform messy CSV, Excel, XML, and JSON into clean, validated data.",
+        "version": "1.0.0",
+        "contact": {
+            "name": "CleanStream Support"
+        }
+    },
+    "servers": [
+        {
+            "url": "http://localhost:3000",
+            "description": "Development server"
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ],
+    "paths": {
+        "/health": {
+            "get": {
+                "summary": "Health check",
+                "security": [],
+                "responses": {
+                    "200": {
+                        "description": "Service is healthy",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        },
+                                        "timestamp": {
+                                            "type": "string",
+                                            "format": "date-time"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/ingest": {
+            "post": {
+                "summary": "Ingest and normalize data",
+                "description": "Accepts file uploads (CSV, XLSX, XML) or JSON body and returns normalized records",
+                "requestBody": {
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "file": {
+                                        "type": "string",
+                                        "format": "binary",
+                                        "description": "CSV, XLSX, XML, or JSON file"
+                                    }
+                                }
+                            }
+                        },
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "data": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successfully processed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IngestionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "No file or data provided"
+                    },
+                    "422": {
+                        "description": "Validation errors",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/validate": {
+            "post": {
+                "summary": "Validate data against schema",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "schema": {
+                                        "$ref": "#/components/schemas/Schema"
+                                    },
+                                    "data": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object"
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "data"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Validation result",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidateResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/schema/define": {
+            "post": {
+                "summary": "Define a target schema",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "targetSchema": {
+                                        "$ref": "#/components/schemas/Schema"
+                                    },
+                                    "mappings": {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "required": [
+                                    "targetSchema"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Schema created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "id": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "message": {
+                                            "type": "string"
+                                        },
+                                        "schema": {
+                                            "$ref": "#/components/schemas/Schema"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/audit/{jobId}": {
+            "get": {
+                "summary": "Get job audit details",
+                "parameters": [
+                    {
+                        "name": "jobId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Audit details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AuditResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Job not found"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer"
+            }
+        },
+        "schemas": {
+            "FieldType": {
+                "type": "string",
+                "enum": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "date",
+                    "email"
+                ]
+            },
+            "FieldDef": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/FieldType"
+                    },
+                    "confidence": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                    }
+                },
+                "required": [
+                    "name",
+                    "type"
+                ]
+            },
+            "Schema": {
+                "type": "object",
+                "properties": {
+                    "fields": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/FieldDef"
+                        }
+                    }
+                },
+                "required": [
+                    "fields"
+                ]
+            },
+            "ValidationError": {
+                "type": "object",
+                "properties": {
+                    "row": {
+                        "type": "integer"
+                    },
+                    "field": {
+                        "type": "string"
+                    },
+                    "errorType": {
+                        "type": "string",
+                        "enum": [
+                            "type_mismatch",
+                            "missing_required",
+                            "invalid_format",
+                            "duplicate"
+                        ]
+                    },
+                    "message": {
+                        "type": "string"
+                    },
+                    "severity": {
+                        "type": "string",
+                        "enum": [
+                            "warning",
+                            "error"
+                        ]
+                    }
+                }
+            },
+            "IngestionResponse": {
+                "type": "object",
+                "properties": {
+                    "jobId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "schema": {
+                        "$ref": "#/components/schemas/Schema"
+                    },
+                    "records": {
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "errors": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "totalRecords": {
+                                "type": "integer"
+                            },
+                            "processedRecords": {
+                                "type": "integer"
+                            },
+                            "processingTimeMs": {
+                                "type": "integer"
+                            }
+                        }
+                    }
+                }
+            },
+            "ValidateResponse": {
+                "type": "object",
+                "properties": {
+                    "valid": {
+                        "type": "boolean"
+                    },
+                    "issues": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        }
+                    }
+                }
+            },
+            "AuditResponse": {
+                "type": "object",
+                "properties": {
+                    "jobId": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "timestamp": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "recordsProcessed": {
+                        "type": "integer"
+                    },
+                    "errors": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        }
+                    },
+                    "schema": {
+                        "$ref": "#/components/schemas/Schema"
+                    },
+                    "processingTimeMs": {
+                        "type": "integer"
+                    }
+                }
+            },
+            "Error": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "details": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }
+}

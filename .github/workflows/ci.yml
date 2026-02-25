@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Check formatting
+        run: bun x prettier --check "src/**/*.ts" "tests/**/*.ts"
+
+      - name: Type check
+        run: bun x tsc --noEmit
+
+      - name: Run unit tests
+        run: bun test
+
+  e2e-test:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Start server
+        run: |
+          RATE_LIMIT_MAX=1000 bun run src/index.ts &
+          sleep 3
+
+      - name: Run E2E tests
+        run: bun run tests/e2e.test.ts
+
+      - name: Stop server
+        run: pkill -f "bun run src/index.ts" || true
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t cleanstream-api .
+
+      - name: Start container
+        run: |
+          docker run -d --name api -p 3000:3000 -e API_KEY=test-api-key cleanstream-api
+          sleep 5
+
+      - name: Test Docker container
+        run: |
+          curl -f http://localhost:3000/health
+          curl -f -X POST http://localhost:3000/ingest \
+            -H "Authorization: Bearer test-api-key" \
+            -H "Content-Type: application/json" \
+            -d '{"data": [{"name": "Test", "email": "test@example.com"}]}'
+
+      - name: Stop container
+        run: docker stop api && docker rm api
