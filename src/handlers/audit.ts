@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
-import type { AuditResponse } from "../models/schema.js";
+import { config } from "../config.js";
+import { PersistentAuditStore } from "../services/auditStore.js";
 
-// In-memory audit store (would be a database in production)
-export const auditStore = new Map<string, AuditResponse>();
+export const auditStore = new PersistentAuditStore(config.auditStoreFile);
 
 export async function auditHandler(req: Request, res: Response): Promise<void> {
   const { jobId } = req.params;
