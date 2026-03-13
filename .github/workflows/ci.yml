@@ -7,7 +7,7 @@ on:
     branches: [main, master]
 
 jobs:
-  lint-and-test:
+  lint-and-unit-integration:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -19,18 +19,12 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Check formatting
-        run: bun x prettier --check "src/**/*.ts" "tests/**/*.ts"
-
-      - name: Type check
-        run: bun x tsc --noEmit
-
-      - name: Run unit tests
-        run: bun test
+      - name: Run lint + typecheck + unit/integration tests
+        run: bun run ci
 
   e2e-test:
     runs-on: ubuntu-latest
-    needs: lint-and-test
+    needs: lint-and-unit-integration
     steps:
       - uses: actions/checkout@v4
 
@@ -41,20 +35,12 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Start server
-        run: |
-          RATE_LIMIT_MAX=1000 bun run src/index.ts &
-          sleep 3
-
-      - name: Run E2E tests
-        run: bun run tests/e2e.test.ts
-
-      - name: Stop server
-        run: pkill -f "bun run src/index.ts" || true
+      - name: Run full E2E suite (core + extended)
+        run: bun run test:e2e
 
   docker:
     runs-on: ubuntu-latest
-    needs: lint-and-test
+    needs: lint-and-unit-integration
     steps:
       - uses: actions/checkout@v4
 

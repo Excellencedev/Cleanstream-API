@@ -180,8 +180,11 @@ bun run test
 # Run E2E tests (isolated local server)
 bun run test:e2e
 
-# Run all checks
+# Run all checks (lint + typecheck + unit/integration tests)
 bun run ci
+
+# Run everything including E2E
+bun run test:all
 
 # Type check
 bun run typecheck
