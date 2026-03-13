@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -10,16 +11,41 @@ import {
 import { inferSchema } from "../inference/index.js";
 import { normalizeRecords } from "../normalizer/index.js";
 import type { IngestionResponse } from "../models/schema.js";
+import { config } from "../config.js";
 import { auditStore } from "./audit.js";
+import { IngestionIdempotencyStore } from "../services/auditStore.js";
+
+const idempotencyStore = new IngestionIdempotencyStore(config.idempotencyTtlMs);
 
 export async function ingestHandler(
   req: Request,
   res: Response,
 ): Promise<void> {
   const startTime = Date.now();
-  const jobId = uuidv4();
 
   try {
+    const idempotencyKey = req.header("Idempotency-Key")?.trim();
+    const requestHash = hashRequest(req);
+
+    if (idempotencyKey) {
+      const existing = idempotencyStore.get(idempotencyKey);
+
+      if (existing) {
+        if (existing.requestHash !== requestHash) {
+          res.status(409).json({
+            error:
+              "Idempotency-Key already used with a different payload. Reuse only with identical requests.",
+          });
+          return;
+        }
+
+        res.setHeader("X-Idempotent-Replay", "true");
+        res.json(existing.response);
+        return;
+      }
+    }
+
+    const jobId = uuidv4();
     let parsedData: ParsedData;
 
     // Handle file upload
@@ -75,6 +101,15 @@ export async function ingestHandler(
       processingTimeMs,
     });
 
+    if (idempotencyKey) {
+      idempotencyStore.set({
+        key: idempotencyKey,
+        requestHash,
+        response,
+        createdAt: Date.now(),
+      });
+    }
+
     res.json(response);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -117,4 +152,20 @@ function parseFile(
   }
 
   throw new Error(`Unsupported file type: ${mimetype || ext}`);
+}
+
+function hashRequest(req: Request): string {
+  const hash = createHash("sha256");
+  hash.update(req.method);
+  hash.update(req.originalUrl);
+
+  if (req.file?.buffer) {
+    hash.update(req.file.buffer);
+    hash.update(req.file.mimetype);
+    hash.update(req.file.originalname);
+  } else {
+    hash.update(JSON.stringify(req.body ?? {}));
+  }
+
+  return hash.digest("hex");
 }

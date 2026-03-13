@@ -8,6 +8,8 @@ export interface Config {
   maxFileSize: number;
   environment: "development" | "production" | "test";
   logLevel: "debug" | "info" | "warn" | "error";
+  auditStoreFile: string;
+  idempotencyTtlMs: number;
 }
 
 function getEnvVar(key: string, defaultValue: string): string {
@@ -41,6 +43,8 @@ export const config: Config = {
   maxFileSize: getEnvNumber("MAX_FILE_SIZE_MB", 50) * 1024 * 1024,
   environment: getEnvVar("NODE_ENV", "development") as Config["environment"],
   logLevel: getEnvVar("LOG_LEVEL", "info") as Config["logLevel"],
+  auditStoreFile: getEnvVar("AUDIT_STORE_FILE", ".data/audit-store.json"),
+  idempotencyTtlMs: getEnvNumber("IDEMPOTENCY_TTL_MS", 24 * 60 * 60 * 1000),
 };
 
 export function validateConfig(): void {
