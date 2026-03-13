@@ -15,7 +15,7 @@
     "lint": "bun run format:check && bun run typecheck",
     "ci": "bun run lint && bun run test",
     "docker:build": "docker build -t cleanstream-api .",
-    "docker:run": "docker run -p 3000:3000 -e API_KEY=test-api-key cleanstream-api"
+    "docker:run": "docker run -p 3000:3000 -e API_KEY=test-api-key -e AUDIT_STORE_FILE=/tmp/audit-store.json cleanstream-api"
   },
   "keywords": [
     "api",

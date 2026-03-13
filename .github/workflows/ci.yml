@@ -49,16 +49,17 @@ jobs:
 
       - name: Start container
         run: |
-          docker run -d --name api -p 3000:3000 -e API_KEY=test-api-key cleanstream-api
+          docker run -d --name api -p 3000:3000 -e API_KEY=test-api-key -e AUDIT_STORE_FILE=/tmp/audit-store.json cleanstream-api
           sleep 5
 
       - name: Test Docker container
         run: |
           curl -f http://localhost:3000/health
-          curl -f -X POST http://localhost:3000/ingest \
+          status=$(curl -sS -o /tmp/ingest-response.json -w "%{http_code}" -X POST http://localhost:3000/ingest \
             -H "Authorization: Bearer test-api-key" \
             -H "Content-Type: application/json" \
-            -d '{"data": [{"name": "Test", "email": "test@example.com"}]}'
+            -d '[{"name":"Test","email":"test@example.com"}]')
+          test "$status" = "200" || (cat /tmp/ingest-response.json && exit 1)
 
       - name: Stop container
         run: docker stop api && docker rm api
