@@ -18,5 +18,8 @@ ENV PORT=3000
 
 EXPOSE 3000
 
+# Ensure runtime-writable paths for non-root user
+RUN mkdir -p /app/.data && chown -R bun:bun /app
+
 USER bun
 CMD ["bun", "run", "src/index.ts"]
