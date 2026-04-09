@@ -9,6 +9,8 @@ import {
   normalizeString,
   normalizeEmail,
   normalizeBoolean,
+  normalizePhone,
+  normalizeName,
 } from "./strings.js";
 
 export { normalizeDate } from "./dates.js";
@@ -82,6 +84,10 @@ function normalizeValue(value: string, type: FieldType): unknown {
       return normalizeDate(value);
     case FieldType.Boolean:
       return normalizeBoolean(value);
+    case FieldType.Phone:
+      return normalizePhone(value);
+    case FieldType.Name:
+      return normalizeName(value);
     default:
       return normalizeString(value);
   }

@@ -94,6 +94,10 @@ function validateType(value: unknown, type: FieldType): boolean {
       );
     case FieldType.Date:
       return !isNaN(Date.parse(strValue));
+    case FieldType.Phone:
+      return /^\+?\d{10,15}$/.test(strValue.replace(/[^\d+]/g, ""));
+    case FieldType.Name:
+      return strValue.trim().length > 0;
     case FieldType.String:
       return true;
     default:

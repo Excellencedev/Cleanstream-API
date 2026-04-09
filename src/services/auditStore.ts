@@ -1,54 +1,88 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import sqlite3 from "sqlite3";
+import { promisify } from "node:util";
 import type { AuditResponse, IngestionResponse } from "../models/schema.js";
 
 export class PersistentAuditStore {
-  private readonly audits = new Map<string, AuditResponse>();
+  private db: sqlite3.Database;
 
-  constructor(private readonly storageFilePath?: string) {
-    this.loadFromDisk();
-  }
-
-  get(jobId: string): AuditResponse | undefined {
-    return this.audits.get(jobId);
-  }
-
-  set(jobId: string, value: AuditResponse): void {
-    this.audits.set(jobId, value);
-    this.persistToDisk();
-  }
-
-  size(): number {
-    return this.audits.size;
-  }
-
-  private loadFromDisk(): void {
-    if (!this.storageFilePath) {
-      return;
+  constructor(private readonly storageFilePath: string) {
+    if (storageFilePath !== ":memory:") {
+      mkdirSync(dirname(this.storageFilePath), { recursive: true });
     }
-
-    try {
-      const contents = readFileSync(this.storageFilePath, "utf-8");
-      const data = JSON.parse(contents) as AuditResponse[];
-
-      for (const audit of data) {
-        if (audit?.jobId) {
-          this.audits.set(audit.jobId, audit);
-        }
-      }
-    } catch {
-      // Ignore missing/corrupt state and start fresh.
-    }
+    this.db = new sqlite3.Database(this.storageFilePath);
+    this.init();
   }
 
-  private persistToDisk(): void {
-    if (!this.storageFilePath) {
-      return;
-    }
+  private init(): void {
+    this.db.serialize(() => {
+      this.db.run(`
+        CREATE TABLE IF NOT EXISTS audits (
+          jobId TEXT PRIMARY KEY,
+          timestamp TEXT,
+          recordsProcessed INTEGER,
+          errors TEXT,
+          schema_def TEXT,
+          processingTimeMs INTEGER
+        )
+      `);
+    });
+  }
 
-    mkdirSync(dirname(this.storageFilePath), { recursive: true });
-    const data = JSON.stringify(Array.from(this.audits.values()));
-    writeFileSync(this.storageFilePath, data, "utf-8");
+  async get(jobId: string): Promise<AuditResponse | undefined> {
+    const get = promisify(
+      (
+        query: string,
+        params: any[],
+        cb: (err: Error | null, row: any) => void,
+      ) => {
+        this.db.get(query, params, cb);
+      },
+    );
+    const row = (await get("SELECT * FROM audits WHERE jobId = ?", [
+      jobId,
+    ])) as any;
+    if (!row) return undefined;
+
+    return {
+      jobId: row.jobId,
+      timestamp: row.timestamp,
+      recordsProcessed: row.recordsProcessed,
+      errors: JSON.parse(row.errors),
+      schema: JSON.parse(row.schema_def),
+      processingTimeMs: row.processingTimeMs,
+    };
+  }
+
+  async set(jobId: string, value: AuditResponse): Promise<void> {
+    const run = promisify(
+      (query: string, params: any[], cb: (err: Error | null) => void) => {
+        this.db.run(query, params, cb);
+      },
+    );
+    await run(
+      `INSERT OR REPLACE INTO audits (jobId, timestamp, recordsProcessed, errors, schema_def, processingTimeMs)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        jobId,
+        value.timestamp,
+        value.recordsProcessed,
+        JSON.stringify(value.errors),
+        JSON.stringify(value.schema),
+        value.processingTimeMs,
+      ],
+    );
+  }
+
+  async size(): Promise<number> {
+    const get = promisify(
+      (query: string, cb: (err: Error | null, row: any) => void) => {
+        this.db.get(query, cb);
+      },
+    );
+    const row = (await get("SELECT COUNT(*) as count FROM audits")) as any;
+    return row.count;
   }
 }
 

@@ -1096,7 +1096,7 @@ describe("E2E: Error Handling", () => {
 
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.records[0].big_number).toBe(999999999999999);
+    expect(data.records[0].big_number).toBe("999999999999999");
   });
 
   test("handles null values", async () => {
