@@ -75,7 +75,12 @@ export function detectFieldType(values: string[]): {
   // Check for number
   const numberMatches = nonEmpty.filter((v) => {
     const cleaned = v.replace(/[$€£¥,\s]/g, "").trim();
-    return !isNaN(Number(cleaned)) && cleaned !== "";
+    return (
+      !isNaN(Number(cleaned)) &&
+      cleaned !== "" &&
+      cleaned.length < 15 &&
+      !cleaned.includes("e")
+    );
   });
   if (numberMatches.length / nonEmpty.length > 0.8) {
     return {
