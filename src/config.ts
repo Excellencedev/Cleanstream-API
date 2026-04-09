@@ -56,6 +56,8 @@ export function validateConfig(): void {
   }
 
   if (config.apiKeys.size === 0) {
-    throw new Error("No API keys configured. Set API_KEYS environment variable.");
+    throw new Error(
+      "No API keys configured. Set API_KEYS environment variable.",
+    );
   }
 }

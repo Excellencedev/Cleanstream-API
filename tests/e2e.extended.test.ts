@@ -152,7 +152,9 @@ describe("E2E Extended: schema and validation behavior", () => {
 
     expect(res.status).toBe(200);
     const data = await res.json();
-    const missingIssue = data.issues.find((x: any) => x.errorType === "missing_required");
+    const missingIssue = data.issues.find(
+      (x: any) => x.errorType === "missing_required",
+    );
     expect(missingIssue).toBeDefined();
     expect(missingIssue.severity).toBe("error");
     expect(data.valid).toBe(false);
