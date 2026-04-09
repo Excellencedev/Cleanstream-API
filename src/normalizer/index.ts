@@ -55,7 +55,7 @@ export function normalizeRecords(
           field: fieldDef.name,
           errorType: "type_mismatch",
           message: `Cannot convert "${value}" to ${fieldDef.type}`,
-          severity: "warning",
+          severity: "error",
         });
         record[fieldDef.name] = value; // Keep original on failure
       } else {

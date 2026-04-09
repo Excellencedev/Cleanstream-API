@@ -54,4 +54,8 @@ export function validateConfig(): void {
   ) {
     console.warn("⚠️  WARNING: Using default test API key in production!");
   }
+
+  if (config.apiKeys.size === 0) {
+    throw new Error("No API keys configured. Set API_KEYS environment variable.");
+  }
 }
