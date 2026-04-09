@@ -12,6 +12,7 @@ import {
   validateHandler,
   schemaDefineHandler,
   auditHandler,
+  jobStatusHandler,
 } from "./handlers/index.js";
 
 // Validate configuration
@@ -50,6 +51,7 @@ app.post("/ingest", authMiddleware, upload.single("file"), ingestHandler);
 app.post("/validate", authMiddleware, validateHandler);
 app.post("/schema/define", authMiddleware, schemaDefineHandler);
 app.get("/audit/:jobId", authMiddleware, auditHandler);
+app.get("/job/:jobId", authMiddleware, jobStatusHandler);
 
 // 404 handler
 app.use((_req, res) => {
