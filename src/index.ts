@@ -26,7 +26,8 @@ const upload = multer({
 });
 
 // Global middleware
-app.use(express.json({ limit: "50mb" }));
+app.disable("x-powered-by"); // Security: hide express signature
+app.use(express.json({ limit: "10mb" })); // Reduced limit for better security
 app.use(requestLogger);
 app.use(rateLimiter);
 

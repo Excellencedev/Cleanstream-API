@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "NODE_ENV=production bun run src/index.ts",
-    "test": "bun test tests/normalizer.test.ts tests/parsers.test.ts tests/inference.test.ts tests/auditStore.test.ts tests/integration.test.ts",
-    "test:e2e": "bash -lc 'PORT=3100 API_KEY=test-api-key RATE_LIMIT_MAX=10000 bun run src/index.ts >/tmp/cleanstream-e2e.log 2>&1 & PID=$!; trap \"kill $PID 2>/dev/null || true\" EXIT; for i in {1..50}; do curl -sf http://localhost:3100/health >/dev/null && break; sleep 0.2; done; API_URL=http://localhost:3100 API_KEY=test-api-key bun test tests/e2e*.test.ts'",
+    "test": "bun test tests/normalizer.test.ts tests/parsers.test.ts tests/inference.test.ts tests/auditStore.test.ts tests/integration.test.ts tests/realistic.test.ts",
+    "test:e2e": "bash -lc 'PORT=3100 API_KEY=test-api-key RATE_LIMIT_MAX=10000 bun run src/index.ts >/tmp/cleanstream-e2e.log 2>&1 & PID=$!; trap \"kill $PID 2>/dev/null || true\" EXIT; for i in {1..50}; do curl -sf http://localhost:3100/health >/dev/null && break; sleep 0.2; done; API_URL=http://localhost:3100 API_KEY=test-api-key bun test tests/e2e*.test.ts tests/realistic.test.ts'",
     "test:all": "bun run test && bun run test:e2e",
     "typecheck": "bun x tsc --noEmit",
     "format": "bun x prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
@@ -40,7 +40,7 @@
     "@types/multer": "^1.4.11",
     "@types/node": "^20.10.6",
     "@types/uuid": "^9.0.7",
-    "bun-types": "^1.0.0",
+    "bun-types": "^1.3.11",
     "prettier": "^3.2.4",
     "typescript": "^5.3.3"
   }

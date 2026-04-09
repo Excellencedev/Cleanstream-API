@@ -135,7 +135,7 @@ describe("E2E Extended: idempotency edge behavior", () => {
 });
 
 describe("E2E Extended: schema and validation behavior", () => {
-  test("validate returns warning for missing required field", async () => {
+  test("validate returns error for missing required field", async () => {
     const res = await fetch(`${API_URL}/validate`, {
       method: "POST",
       headers: jsonHeaders,
@@ -152,9 +152,12 @@ describe("E2E Extended: schema and validation behavior", () => {
 
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(
-      data.issues.some((x: any) => x.errorType === "missing_required"),
-    ).toBe(true);
+    const missingIssue = data.issues.find(
+      (x: any) => x.errorType === "missing_required",
+    );
+    expect(missingIssue).toBeDefined();
+    expect(missingIssue.severity).toBe("error");
+    expect(data.valid).toBe(false);
   });
 
   test("schema define accepts mappings and returns created schema", async () => {

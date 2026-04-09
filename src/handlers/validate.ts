@@ -49,7 +49,7 @@ export async function validateHandler(
             field: field.name,
             errorType: "missing_required",
             message: `Missing value for field "${field.name}"`,
-            severity: "warning",
+            severity: "error",
           });
           continue;
         }
