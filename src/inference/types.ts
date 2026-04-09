@@ -37,6 +37,18 @@ export function detectFieldType(values: string[]): {
     };
   }
 
+  // Check for phone
+  const phoneMatches = nonEmpty.filter((v) => {
+    const cleaned = v.replace(/[^\d+]/g, "");
+    return cleaned.length >= 10 && cleaned.length <= 15;
+  });
+  if (phoneMatches.length / nonEmpty.length > 0.8) {
+    return {
+      type: FieldType.Phone,
+      confidence: phoneMatches.length / nonEmpty.length,
+    };
+  }
+
   // Check for boolean
   const boolMatches = nonEmpty.filter((v) => {
     const lower = v.toLowerCase().trim();

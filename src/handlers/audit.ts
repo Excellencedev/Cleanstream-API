@@ -12,7 +12,7 @@ export async function auditHandler(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const audit = auditStore.get(jobId);
+  const audit = await auditStore.get(jobId);
 
   if (!audit) {
     res.status(404).json({ error: `Job not found: ${jobId}` });

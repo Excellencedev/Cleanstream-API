@@ -10,6 +10,8 @@ export interface Config {
   logLevel: "debug" | "info" | "warn" | "error";
   auditStoreFile: string;
   idempotencyTtlMs: number;
+  ipWhitelist: string[];
+  perKeyQuota: number;
 }
 
 function getEnvVar(key: string, defaultValue: string): string {
@@ -43,8 +45,13 @@ export const config: Config = {
   maxFileSize: getEnvNumber("MAX_FILE_SIZE_MB", 50) * 1024 * 1024,
   environment: getEnvVar("NODE_ENV", "development") as Config["environment"],
   logLevel: getEnvVar("LOG_LEVEL", "info") as Config["logLevel"],
-  auditStoreFile: getEnvVar("AUDIT_STORE_FILE", ".data/audit-store.json"),
+  auditStoreFile: getEnvVar("AUDIT_STORE_FILE", ".data/cleanstream.db"),
   idempotencyTtlMs: getEnvNumber("IDEMPOTENCY_TTL_MS", 24 * 60 * 60 * 1000),
+  ipWhitelist: getEnvVar("IP_WHITELIST", "")
+    .split(",")
+    .map((ip) => ip.trim())
+    .filter(Boolean),
+  perKeyQuota: getEnvNumber("PER_KEY_QUOTA", 10000),
 };
 
 export function validateConfig(): void {

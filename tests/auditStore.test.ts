@@ -6,24 +6,27 @@ import {
   IngestionIdempotencyStore,
   PersistentAuditStore,
 } from "../src/services/auditStore.js";
+import { FieldType } from "../src/models/schema.js";
 
 describe("PersistentAuditStore", () => {
-  test("persists and reloads audit entries", () => {
-    const file = join(tmpdir(), `cleanstream-audit-${Date.now()}.json`);
+  test("persists and reloads audit entries", async () => {
+    const file = join(tmpdir(), `cleanstream-audit-${Date.now()}.db`);
     if (existsSync(file)) rmSync(file);
 
     const firstStore = new PersistentAuditStore(file);
-    firstStore.set("job-123", {
+    await firstStore.set("job-123", {
       jobId: "job-123",
       timestamp: new Date().toISOString(),
       recordsProcessed: 1,
       errors: [],
-      schema: { fields: [{ name: "email", type: "email", confidence: 1 }] },
+      schema: {
+        fields: [{ name: "email", type: FieldType.Email, confidence: 1 }],
+      },
       processingTimeMs: 10,
     });
 
     const secondStore = new PersistentAuditStore(file);
-    const loaded = secondStore.get("job-123");
+    const loaded = await secondStore.get("job-123");
 
     expect(loaded).toBeDefined();
     expect(loaded?.jobId).toBe("job-123");

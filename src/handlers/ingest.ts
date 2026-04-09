@@ -17,11 +17,22 @@ import { IngestionIdempotencyStore } from "../services/auditStore.js";
 
 const idempotencyStore = new IngestionIdempotencyStore(config.idempotencyTtlMs);
 
+interface JobStatus {
+  jobId: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  result?: IngestionResponse;
+  error?: string;
+  createdAt: number;
+}
+
+const jobsStore = new Map<string, JobStatus>();
+
 export async function ingestHandler(
   req: Request,
   res: Response,
 ): Promise<void> {
   const startTime = Date.now();
+  const isAsync = req.query?.async === "true";
 
   try {
     const idempotencyKey = req.header("Idempotency-Key")?.trim();
@@ -46,6 +57,57 @@ export async function ingestHandler(
     }
 
     const jobId = uuidv4();
+
+    if (isAsync) {
+      jobsStore.set(jobId, {
+        jobId,
+        status: "pending",
+        createdAt: Date.now(),
+      });
+
+      // Process in background
+      processIngest(req, jobId, startTime, idempotencyKey, requestHash).catch(
+        console.error,
+      );
+
+      res.status(202).json({
+        jobId,
+        status: "accepted",
+        pollUrl: `/job/${jobId}`,
+      });
+      return;
+    }
+
+    const response = await processIngest(
+      req,
+      jobId,
+      startTime,
+      idempotencyKey,
+      requestHash,
+    );
+    res.json(response);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    const statusCode = (error as any).statusCode || 422;
+    res.status(statusCode).json({
+      error: "Failed to process input",
+      details: message,
+    });
+  }
+}
+
+async function processIngest(
+  req: Request,
+  jobId: string,
+  startTime: number,
+  idempotencyKey?: string,
+  requestHash?: string,
+): Promise<IngestionResponse> {
+  try {
+    if (jobsStore.has(jobId)) {
+      jobsStore.get(jobId)!.status = "processing";
+    }
+
     let parsedData: ParsedData;
 
     // Handle file upload
@@ -58,13 +120,13 @@ export async function ingestHandler(
       const content = JSON.stringify(req.body);
       parsedData = parseJSON(content);
     } else {
-      res.status(400).json({ error: "No file or data provided" });
-      return;
+      const error = new Error("No file or data provided");
+      (error as any).statusCode = 400;
+      throw error;
     }
 
     if (parsedData.rows.length === 0) {
-      res.status(422).json({ error: "No records found in input" });
-      return;
+      throw new Error("No records found in input");
     }
 
     // Infer schema
@@ -101,7 +163,7 @@ export async function ingestHandler(
       processingTimeMs,
     });
 
-    if (idempotencyKey) {
+    if (idempotencyKey && requestHash) {
       idempotencyStore.set({
         key: idempotencyKey,
         requestHash,
@@ -110,14 +172,41 @@ export async function ingestHandler(
       });
     }
 
-    res.json(response);
+    if (jobsStore.has(jobId)) {
+      jobsStore.set(jobId, {
+        ...jobsStore.get(jobId)!,
+        status: "completed",
+        result: response,
+      });
+    }
+
+    return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    res.status(422).json({
-      error: "Failed to process input",
-      details: message,
-    });
+    if (jobsStore.has(jobId)) {
+      jobsStore.set(jobId, {
+        ...jobsStore.get(jobId)!,
+        status: "failed",
+        error: message,
+      });
+    }
+    throw error;
   }
+}
+
+export async function jobStatusHandler(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const { jobId } = req.params;
+  const job = jobsStore.get(jobId);
+
+  if (!job) {
+    res.status(404).json({ error: "Job not found" });
+    return;
+  }
+
+  res.json(job);
 }
 
 function parseFile(
