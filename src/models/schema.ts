@@ -7,6 +7,8 @@ export enum FieldType {
   Boolean = "boolean",
   Date = "date",
   Email = "email",
+  Phone = "phone",
+  Name = "name",
 }
 
 // Field definition schema
